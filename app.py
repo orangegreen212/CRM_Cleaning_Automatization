@@ -1,77 +1,53 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="CRM/Finance Report", layout="wide")
+st.title("🧹 CRM Data Cleaning Automation")
 
-st.title("📊 CRM & Finance Automated Report")
+# Upload CSV
+uploaded_file = st.file_uploader("Upload your CRM file (CSV format)", type="csv")
 
-# --- Data Upload ---
-st.sidebar.header("Data Source")
-data_source = st.sidebar.radio("Choose data source:", ["GitHub link", "Upload CSV"])
+if uploaded_file:
+    # Read file
+    df = pd.read_csv(uploaded_file)
 
-if data_source == "GitHub link":
-    url = st.sidebar.text_input("Paste GitHub raw CSV link:", 
-                                "https://raw.githubusercontent.com/plotly/datasets/master/2014_world_gdp_with_codes.csv")
-    if url:
-        df = pd.read_csv(url)
-else:
-    file = st.sidebar.file_uploader("Upload CSV file", type="csv")
-    if file:
-        df = pd.read_csv(file)
-
-if 'df' in locals():
-    st.subheader("🔎 Raw Data (first 10 rows)")
+    st.subheader("📊 Original Data (first 10 rows)")
     st.dataframe(df.head(10))
 
-    # --- Data Cleaning ---
+    # Step 1: Drop rows with missing key values if such columns exist
+    key_columns = ["CUSTOMERNAME", "CONTACTLASTNAME", "CONTACTFIRSTNAME"]
+    existing_keys = [col for col in key_columns if col in df.columns]
+
+    if existing_keys:
+        before_missing = len(df)
+        df = df.dropna(subset=existing_keys, how="any")
+        after_missing = len(df)
+        removed_missing = before_missing - after_missing
+    else:
+        removed_missing = 0
+
+    # Step 2: Remove duplicates
+    before_dups = len(df)
+    df = df.drop_duplicates()
+    after_dups = len(df)
+    removed_dups = before_dups - after_dups
+
+    # Final cleaned dataframe
+    st.subheader("✅ Cleaned Data (first 10 rows)")
+    st.dataframe(df.head(10))
+
+    # Step 3: Cleaning Report
     st.subheader("🧹 Data Cleaning Report")
-    initial_shape = df.shape
-    cols_to_check = ["CUSTOMERNAME", "CONTACTLASTNAME", "CONTACTFIRSTNAME"]
-    existing_cols = [col for col in cols_to_check if col in df.columns]
-if existing_cols:
-    df_clean = df.dropna(subset=existing_cols, how="any")
+    st.write(f"- Rows removed due to missing values: **{removed_missing}**")
+    st.write(f"- Duplicate rows removed: **{removed_dups}**")
+    st.write(f"- Final dataset size: **{len(df)} rows, {len(df.columns)} columns**")
+
+    # Download button
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="⬇️ Download Cleaned CSV",
+        data=csv,
+        file_name="cleaned_crm_data.csv",
+        mime="text/csv"
+    )
 else:
-    df_clean = df.copy()
-
-
-    # Удаление пропусков
-    df_clean = df.dropna(subset=["CUSTOMERNAME", "CONTACTLASTNAME", "CONTACTFIRSTNAME"], how="any")
-    removed_nulls = initial_shape[0] - df_clean.shape[0]
-
-    # Удаление дубликатов
-    before_dupes = df_clean.shape[0]
-    df_clean = df_clean.drop_duplicates()
-    removed_dupes = before_dupes - df_clean.shape[0]
-
-    st.markdown(f"""
-    - Исходное количество строк: **{initial_shape[0]}**
-    - Удалено строк с пропущенными данными: **{removed_nulls}**
-    - Удалено дубликатов: **{removed_dupes}**
-    - Итоговое количество строк: **{df_clean.shape[0]}**
-    """)
-
-    # --- Metrics & Visuals ---
-    st.subheader("📈 Key Metrics")
-    if "POTENTIALDEALSIZE" in df_clean.columns:
-        st.metric("Средний размер сделки", round(df_clean["POTENTIALDEALSIZE"].mean(), 2))
-        st.metric("Максимальный размер сделки", round(df_clean["POTENTIALDEALSIZE"].max(), 2))
-        st.metric("Количество сделок", df_clean.shape[0])
-
-    st.subheader("🌍 Deals by Country")
-    if "COUNTRY" in df_clean.columns:
-        country_stats = df_clean["COUNTRY"].value_counts().head(10)
-        fig, ax = plt.subplots()
-        country_stats.plot(kind="bar", ax=ax)
-        ax.set_ylabel("Количество сделок")
-        ax.set_xlabel("Страна")
-        st.pyplot(fig)
-
-    st.subheader("📌 Средний размер сделки по источнику (LEADSOURCE)")
-    if {"LEADSOURCE", "POTENTIALDEALSIZE"}.issubset(df_clean.columns):
-        lead_stats = df_clean.groupby("LEADSOURCE")["POTENTIALDEALSIZE"].mean().sort_values(ascending=False)
-        fig2, ax2 = plt.subplots()
-        lead_stats.plot(kind="bar", ax=ax2)
-        ax2.set_ylabel("Средний размер сделки")
-        ax2.set_xlabel("Источник")
-        st.pyplot(fig2)
+    st.info("Please upload a CSV file to start cleaning.")
