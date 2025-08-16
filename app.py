@@ -17,8 +17,10 @@ def main():
         return
 
     df = pd.read_csv(uploaded)
+    encoding_choice = st.selectbox("Choose code", ["utf-8", "latin-1", "cp1252"])
+    df = pd.read_csv(uploaded, encoding=encoding_choice)
 
-    st.subheader("Первые строки")
+    st.subheader("First lines")
     st.write(df.head())
 
     # Validation email
