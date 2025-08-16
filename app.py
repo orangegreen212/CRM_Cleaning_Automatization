@@ -18,7 +18,7 @@ def main():
 
     try:
     df = pd.read_csv(uploaded, encoding="utf-8")
-except UnicodeDecodeError:
+    except UnicodeDecodeError:
     try:
         df = pd.read_csv(uploaded, encoding="latin-1")
     except UnicodeDecodeError:
