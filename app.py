@@ -16,7 +16,14 @@ def main():
         st.info("Please upload CSV file, example, from Lead Scoring Dataset.")
         return
 
-    df = pd.read_csv(uploaded)
+    try:
+    df = pd.read_csv(uploaded, encoding="utf-8")
+except UnicodeDecodeError:
+    try:
+        df = pd.read_csv(uploaded, encoding="latin-1")
+    except UnicodeDecodeError:
+        df = pd.read_csv(uploaded, encoding="cp1252")
+
     encoding_choice = st.selectbox("Choose code", ["utf-8", "latin-1", "cp1252"])
     df = pd.read_csv(uploaded, encoding=encoding_choice)
 
