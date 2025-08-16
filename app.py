@@ -29,7 +29,7 @@ if 'df' in locals():
     initial_shape = df.shape
     cols_to_check = ["CUSTOMERNAME", "CONTACTLASTNAME", "CONTACTFIRSTNAME"]
     existing_cols = [col for col in cols_to_check if col in df.columns]
-    if existing_cols:
+if existing_cols:
     df_clean = df.dropna(subset=existing_cols, how="any")
 else:
     df_clean = df.copy()
