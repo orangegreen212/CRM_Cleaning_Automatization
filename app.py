@@ -1,57 +1,62 @@
-# app1.py
-
 import streamlit as st
 import pandas as pd
 import re
 import plotly.express as px
 
-def is_valid_email(email):
-    return bool(re.match(r"[^@]+@[^@]+\.[^@]+", str(email)))
+# Проверка валидности телефона (только цифры, длина 7-15)
+def is_valid_phone(phone):
+    phone_str = str(phone)
+    digits = re.sub(r"\D", "", phone_str)
+    return 7 <= len(digits) <= 15
 
 def main():
-    st.title("CRM")
+    st.title("CRM Demo Analysis")
 
-    uploaded = st.file_uploader("Please upload CSV file", type=["csv"])
+    uploaded = st.file_uploader("Upload CSV file", type=["csv"])
     if not uploaded:
-        st.info("Please upload CSV file, example, from Lead Scoring Dataset.")
+        st.info("Please upload your CSV file.")
         return
 
+    # Попробуем разные кодировки
     try:
-    df = pd.read_csv(uploaded, encoding="utf-8")
+        df = pd.read_csv(uploaded, encoding="utf-8")
     except UnicodeDecodeError:
-    try:
-        df = pd.read_csv(uploaded, encoding="latin-1")
-    except UnicodeDecodeError:
-        df = pd.read_csv(uploaded, encoding="cp1252")
+        try:
+            df = pd.read_csv(uploaded, encoding="latin-1")
+        except UnicodeDecodeError:
+            df = pd.read_csv(uploaded, encoding="cp1252")
 
-    encoding_choice = st.selectbox("Choose code", ["utf-8", "latin-1", "cp1252"])
-    df = pd.read_csv(uploaded, encoding=encoding_choice)
-
-    st.subheader("First lines")
+    st.subheader("First rows of your data")
     st.write(df.head())
 
-    # Validation email
-    df["valid_email"] = df["Email"].apply(is_valid_email)
-    email_stats = df["valid_email"].value_counts()
+    # Валидация телефонов
+    if "PHONE" in df.columns:
+        df["valid_phone"] = df["PHONE"].apply(is_valid_phone)
+        phone_stats = df["valid_phone"].value_counts()
+        fig_phone = px.pie(
+            names=phone_stats.index.map({True: "Valid", False: "Invalid"}),
+            values=phone_stats.values,
+            title="Valid vs Invalid Phones"
+        )
+        st.plotly_chart(fig_phone)
 
-    fig1 = px.pie(
-        names=email_stats.index.map({True: "Valid", False: "Invalid"}),
-        values=email_stats.values,
-        title="Valid vs Invalid e-mails"
-    )
-    st.plotly_chart(fig1)
+    # Источники лидов
+    if "LEADSOURCE" in df.columns:
+        source_counts = df["LEADSOURCE"].value_counts().nlargest(10)
+        fig_source = px.bar(
+            x=source_counts.index,
+            y=source_counts.values,
+            labels={'x': 'Lead Source', 'y': 'Count'},
+            title="Top 10 Lead Sources"
+        )
+        st.plotly_chart(fig_source)
 
-    # Lead
-    if "Lead Stage" in df.columns:
-        stage_counts = df["Lead Stage"].value_counts()
-        fig2 = px.bar(x=stage_counts.index, y=stage_counts.values, labels={'x': 'Lead Stage', 'y': 'Count'}, title="Лиды по стадиям")
-        st.plotly_chart(fig2)
-
-    # Source Lead
-    if "Lead Origin" in df.columns:
-        origin_counts = df["Lead Origin"].value_counts().nlargest(10)
-        fig3 = px.bar(x=origin_counts.index, y=origin_counts.values, labels={'x': 'Lead Origin', 'y': 'Count'}, title="Топ-10 источников лидов")
-        st.plotly_chart(fig3)
+    # Потенциальные сделки
+    if "POTENTIALDEALSIZE" in df.columns:
+        df["POTENTIALDEALSIZE"] = pd.to_numeric(df["POTENTIALDEALSIZE"], errors='coerce')
+        top_deals = df.nlargest(10, "POTENTIALDEALSIZE")[["CUSTOMERNAME", "POTENTIALDEALSIZE"]]
+        st.subheader("Top 10 Customers by Potential Deal Size")
+        st.write(top_deals)
 
     st.markdown("— DONE. —")
 
